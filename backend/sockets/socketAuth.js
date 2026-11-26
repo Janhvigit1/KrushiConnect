@@ -1,0 +1,30 @@
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+
+export const socketAuth = async (socket, next) => {
+  try {
+    const token =
+      socket.handshake.auth?.token ||
+      socket.handshake.headers?.authorization?.split(' ')[1] ||
+      socket.handshake.query?.token;
+
+    if (!token) {
+      return next(new Error('Authentication error: Token required'));
+    }
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || 'krushiconnect_secret_jwt_key_2026_farmer_social'
+    );
+
+    const user = await User.findById(decoded.id).select('-password');
+    if (!user) {
+      return next(new Error('Authentication error: Farmer not found'));
+    }
+
+    socket.user = user;
+    next();
+  } catch (error) {
+    next(new Error('Authentication error: Invalid or expired token'));
+  }
+};
